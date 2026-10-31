@@ -489,9 +489,12 @@ function renderDetail(){
     (w.description?'<p class="sub small" style="margin:10px 0 0;white-space:pre-wrap">'+linkify(w.description)+'</p>':'')+'</div>'+
    '<div class="body">'+fbHtml+
     (locked?'<div class="lockmsg">이 주차는 교수님이 잠가서 제출·수정할 수 없습니다. 내용은 볼 수 있습니다.</div>':'')+
-    (showApp?'<div class="appbox"><h3>🌐 이번 주 웹앱</h3><p class="hint">AI로 만든 웹앱을 Vercel 등에 배포하고 <b>주소</b>를 넣어 주세요. 배포가 어려우면 아래 <b>첨부 파일</b>에 HTML 파일을 올려도 됩니다.</p>'+
-      '<label class="f">배포 주소'+(isApp?' <span class="chip c-warn" style="font-size:11px">필수</span>':'')+'<div class="urlrow"><input class="in" id="sApp" type="url" inputmode="url" maxlength="500" placeholder="https://우리조-웹앱.vercel.app" value="'+esc(sub.app_url||'')+'"'+(locked?' disabled':'')+'><button class="btn sm" type="button" id="sAppOpen">열어 보기</button></div></label>'+
-      '<label class="f">GitHub 저장소 주소 <span class="muted tiny">(선택)</span><input class="in" id="sRepo" type="url" inputmode="url" maxlength="500" placeholder="https://github.com/아이디/저장소" value="'+esc(sub.repo_url||'')+'"'+(locked?' disabled':'')+'></label></div>':'')+
+    (showApp?'<div class="appbox"><h3>🌐 이번 주 웹앱</h3><p class="hint">AI로 만든 웹앱을 <b>① Vercel 배포 주소</b>로 내거나, <b>② HTML 파일을 직접 올리세요</b>. 둘 중 하나면 됩니다.</p>'+
+      '<label class="f">① 배포 주소'+(isApp?' <span class="muted tiny">(Vercel 등)</span>':'')+'<div class="urlrow"><input class="in" id="sApp" type="url" inputmode="url" maxlength="500" placeholder="https://우리조-웹앱.vercel.app" value="'+esc(sub.app_url||'')+'"'+(locked?' disabled':'')+'><button class="btn sm" type="button" id="sAppOpen" style="white-space:nowrap">열어 보기</button></div></label>'+
+      '<label class="f">GitHub 저장소 주소 <span class="muted tiny">(선택)</span><input class="in" id="sRepo" type="url" inputmode="url" maxlength="500" placeholder="https://github.com/아이디/저장소" value="'+esc(sub.repo_url||'')+'"'+(locked?' disabled':'')+'></label>'+
+      '<div class="f">② 웹앱 HTML 파일 <span class="muted tiny">(2MB까지 · 올린 파일은 아래 첨부 목록에 ▶ 실행으로 보입니다)</span>'+
+      (locked?'':'<div class="row" style="margin-top:6px"><label class="btn primary sm" for="fileInApp" style="cursor:pointer">📤 HTML 파일 올리기</label><input type="file" id="fileInApp" accept=".html,.htm,text/html" multiple hidden>'+
+        ((sub.files||[]).some(function(f){return f.mime==='text/html'||/\.html?$/i.test(f.name)})?'<span class="chip c-ok">✓ HTML 파일 있음</span>':'')+'</div>')+'</div></div>':'')+
     '<label class="f">결과물 제목<input class="in" id="sTitle" maxlength="200" placeholder="예: 오십견 병력청취 질문지 v1" value="'+esc(sub.title||'')+'"'+(locked?' disabled':'')+'></label>'+
     '<label class="f">내용 · 설명<textarea class="in" id="sContent" rows="10" placeholder="'+(isApp?'웹앱의 기능, AI에게 어떻게 요청했는지(프롬프트), 이번 주에 고친 점, 조원별 역할 등을 적어 주세요.':'이번 주에 한 일, 결과물 설명, AI를 어떻게 활용했는지, 조원별 역할 등을 적어 주세요.')+'"'+(locked?' disabled':'')+'>'+esc(sub.content||'')+'</textarea></label>'+
     '<label class="f">링크 (한 줄에 하나)<textarea class="in" id="sLinks" rows="3" placeholder="https://… (배포한 웹앱, 구글 드라이브, 발표 자료 등)"'+(locked?' disabled':'')+'>'+esc(links)+'</textarea></label>'+
@@ -507,6 +510,7 @@ function renderDetail(){
   var ao=$('#sAppOpen');if(ao)ao.onclick=function(){var u=$('#sApp').value.trim();if(!/^https?:\/\/\S+$/i.test(u)){toast('https:// 로 시작하는 주소를 넣어 주세요.',true);return}window.open(u,'_blank','noopener')};
   if(!locked){
     $('#sSave').onclick=saveSub;
+    var fa=$('#fileInApp');if(fa)fa.onchange=function(){var fs=Array.prototype.slice.call(fa.files).filter(function(f){return /\.html?$/i.test(f.name)||f.type==='text/html'});if(!fs.length){toast('.html 파일을 골라 주세요.',true)}else upload(fs);fa.value=''};
     var fi=$('#fileIn'),drop=$('#drop');
     fi.onchange=function(){upload(Array.prototype.slice.call(fi.files));fi.value=''};
     ['dragenter','dragover'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.add('on')})});
@@ -728,7 +732,7 @@ function renderWeeks(){
   $('#apane').innerHTML='<div class="toolbar"><span class="sub small">한 학기 <b>15주</b> 고정입니다. 주차마다 <b>제출 형식</b>(🌐 웹앱 / 📝 일반)을 고를 수 있습니다. 주차별 제목·설명·마감을 정하고, <b>잠금</b>을 켜면 학생이 더 이상 제출·수정할 수 없습니다.</span></div>'+
    '<div class="wkcards">'+ws.map(function(w){
      return '<div class="card wkcard" data-wk="'+w.week+'"><div class="row" style="margin-bottom:8px"><b style="font-size:16px">'+w.week+'주차</b><span class="chip c-none">제출 '+subCount(w.week)+'/'+(AD.teams||[]).length+'</span>'+(w.kind!=='general'?'<span class="chip c-sub">🌐 웹앱</span>':'<span class="chip c-none">📝 일반</span>')+(w.locked?'<span class="chip c-warn">🔒 잠김</span>':'')+'</div>'+
-      '<label class="f">제출 형식<select class="in" data-f="kind"><option value="webapp"'+(w.kind!=='general'?' selected':'')+'>🌐 웹앱 과제 — 배포 주소(필수)·GitHub 주소·HTML 파일</option><option value="general"'+(w.kind==='general'?' selected':'')+'>📝 일반 과제 — 글·링크·파일</option></select></label>'+
+      '<label class="f">제출 형식<select class="in" data-f="kind"><option value="webapp"'+(w.kind!=='general'?' selected':'')+'>🌐 웹앱 과제 (배포 주소·HTML 파일)</option><option value="general"'+(w.kind==='general'?' selected':'')+'>📝 일반 과제 (글·링크·파일)</option></select></label>'+
       '<label class="f">제목<input class="in" data-f="title" maxlength="120" value="'+esc(w.title)+'"></label>'+
       '<label class="f">설명 · 과제 안내<textarea class="in" data-f="description" rows="3">'+esc(w.description)+'</textarea></label>'+
       '<div class="row2"><label class="f" style="margin:0">마감 일시<input class="in" type="datetime-local" data-f="due" value="'+esc(toLocalInput(w.due_at))+'"></label>'+
