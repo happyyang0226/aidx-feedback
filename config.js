@@ -2,6 +2,6 @@
 // url : Project URL        (예: https://abcdefghijkl.supabase.co)
 // key : Publishable key (sb_publishable_…) 또는 anon public key   ※ secret / service_role 키는 절대 넣지 마세요
 window.AIDX_CONFIG = {
-  url: "",
-  key: ""
+  url: "https://egwwmhmftixjmvrtivfm.supabase.co",
+  key: "sb_publishable_zz7DgyaZayieo2vKGXhvrw_v6iHfLti"
 };
