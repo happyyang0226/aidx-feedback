@@ -385,8 +385,15 @@ $('#loginForm').addEventListener('submit',function(e){
     p=rpc('fb_login_admin',{p_id:id,p_code:code});store(LKEY,JSON.stringify({kind:'admin',id:id}));
   }
   btn.disabled=true;$('#lErr').textContent='';
-  p.then(function(r){TOKEN=r.token;store(TKEY,TOKEN);return boot()})
-   .catch(function(e){$('#lErr').textContent=e.code==='auth'?(ltab==='student'?'조 이름, 학번 또는 접속 코드가 맞지 않습니다.':'아이디 또는 접속 코드가 맞지 않습니다.'):errMsg(e)})
+  p.then(function(r){
+     TOKEN=r.token;store(TKEY,TOKEN);
+     if(r.moved&&r.team_id){store(LKEY,JSON.stringify({kind:'student',team:r.team_id,sid:$('#lSid').value.trim()}));$('#lTeam').value=r.team_id}
+     return boot().then(function(){if(r.moved)alert('선택한 조가 아니라 "'+(r.team_name||r.team_id)+'"으로 가입되어 있어서 그 조로 로그인했습니다.\n다음부터는 조 이름에서 "'+(r.team_name||r.team_id)+'"을(를) 고르세요.\n조가 잘못되었다면 교수님께 말씀하세요.')});
+   })
+   .catch(function(e){$('#lErr').textContent=e.code==='auth'?(ltab==='student'?'조 이름, 학번 또는 접속 코드가 맞지 않습니다.':'아이디 또는 접속 코드가 맞지 않습니다.')
+     :e.code==='nosid'?'가입되지 않은 학번입니다. 학번을 다시 확인하고, 처음이면 위의 "처음 가입" 탭에서 가입하세요.'
+     :e.code==='badcode'?'접속 코드가 맞지 않습니다. 코드를 바꾼 적이 있다면 바꾼 코드로, 잊었다면 교수님께 새 코드를 받으세요. (10번 틀리면 10분간 잠깁니다)'
+     :errMsg(e)})
    .then(function(){btn.disabled=false});
 });
 $('#logoutBtn').onclick=function(){
