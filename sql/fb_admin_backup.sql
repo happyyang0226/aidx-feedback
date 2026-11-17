@@ -1,0 +1,4 @@
+-- 교수 전용 JSON 백업 함수 (2026-11-17 적용, 기존 데이터 변경 없음 · 읽기 전용)
+-- fb_admin_backup(p_token): 모든 표 + 첨부 파일 목록(내용 제외)
+-- fb_admin_file_data(p_token, p_ids): 첨부 파일 내용 (한 번에 20개까지)
+-- 실제 정의는 Supabase 마이그레이션 'fb_admin_backup' 참고
