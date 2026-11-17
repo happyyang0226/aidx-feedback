@@ -950,6 +950,9 @@ function renderSettings(){
 
 /* ================= 시작 ================= */
 if(!/^https?:\/\/.+/.test(BASE)||KEY.length<20){show('setup');return}
+/* 교수 통합 로그인: 학습 포털이 넘겨준 교수 세션(#sso=…, 12시간) → 받자마자 주소에서 지움 */
+var SSO=(location.hash.match(/^#sso=([A-Za-z0-9_-]+)/)||[])[1];
+if(SSO){history.replaceState(null,'',location.pathname+location.search);TOKEN=SSO;store(TKEY,TOKEN);store(LKEY,JSON.stringify({kind:'admin',id:'admin'}))}
 boot();
 })();
 </script>
