@@ -845,10 +845,15 @@ function renderSettings(){
     '<label class="f">조당 최대 인원<select class="in" id="jMax" style="width:120px">'+[1,2,3,4,5,6].map(function(n){return '<option'+(n===st.max_members?' selected':'')+'>'+n+'</option>'}).join('')+'</select></label>'+
     '<button class="btn primary" id="jSave" type="button">가입 설정 저장</button></div>'+
    '<div class="card pad"><h3>제출물 · 피드백 내려받기</h3><p class="sub small">모든 조·주차의 제출 내용, 점수, 피드백을 엑셀에서 열 수 있는 CSV로 내려받습니다. 학기말 성적 정리와 백업에 쓰세요.</p><button class="btn primary" id="expAll" type="button">CSV 내려받기</button></div>'+
-   '<div class="card pad"><h3>JSON 전체 백업</h3><p class="sub small">조·학생·주차·제출물·피드백·설정과 <b>첨부 파일까지</b> 하나의 JSON 파일로 내려받습니다. 학기말·학기 중 정기 보관용입니다. 학생 접속 코드가 들어 있으니 외부에 공유하지 마세요.</p>'+
-    '<label class="radio" style="margin-bottom:10px;display:flex;width:max-content"><input type="checkbox" id="bkFiles" checked> 첨부 파일 내용 포함 <span class="muted tiny" id="bkSize"></span></label>'+
-    '<button class="btn primary" id="bkAll" type="button">JSON 백업 내려받기</button><p class="sub small" id="bkMsg" style="margin-top:8px"></p></div>'+
-   '<div class="card pad"><h3>교수 접속 코드 바꾸기</h3><p class="sub small">처음 코드(CHANGE-ME-2026)는 꼭 바꿔 주세요. 8자 이상.</p>'+
+   '<div class="card pad"><h3>JSON 전체 백업</h3><p class="sub small">조·학생·주차·제출물·피드백·설정과 <b>첨부 파일까지</b> 하나의 JSON 파일로 저장합니다. 학생 접속 코드가 들어 있으니 외부에 공유하지 마세요.</p>'+
+    '<label class="radio" style="margin-bottom:10px;display:flex;width:max-content"><input type="checkbox" id="bkFiles" checked> 첨부 파일 내용 포함</label>'+
+    '<button class="btn primary" id="bkAll" type="button">JSON 백업 저장</button><p class="sub small" style="margin-top:8px">'+(window.showSaveFilePicker?'💾 누르면 <b>저장할 폴더와 이름을 고르는 창</b>이 먼저 뜹니다.':'이 브라우저는 저장 위치 선택을 지원하지 않아 <b>다운로드 폴더</b>에 저장됩니다. (PC 크롬·엣지에서는 폴더를 고를 수 있어요)')+'</p><p class="sub small" id="bkMsg"></p></div>'+
+   '<div class="card pad"><h3>백업 파일로 복원</h3><p class="sub small">저장해 둔 JSON 백업으로 데이터를 되살립니다. <b>지금 있는 자료를 지우지는 않습니다.</b> 먼저 무엇이 바뀌는지 미리 보여 드린 뒤 확인을 받고 복원합니다.</p>'+
+    '<label class="f">백업 파일 (.json)<input class="in" type="file" id="rsFile" accept=".json,application/json"></label>'+
+    '<div class="f"><label class="radio" style="display:flex;margin-bottom:6px"><input type="radio" name="rsMode" value="missing" checked> 빠진 것만 되살리기 <span class="muted tiny">(추천 · 지금 자료는 그대로 두고, 없어진 조·학생·제출물·첨부만 다시 넣기)</span></label>'+
+    '<label class="radio" style="display:flex"><input type="radio" name="rsMode" value="overwrite"> 백업 시점으로 덮어쓰기 <span class="muted tiny">(같은 항목은 백업 내용으로 바꿈 · 백업 이후 고친 내용은 사라짐)</span></label></div>'+
+    '<button class="btn" id="rsCheck" type="button">무엇이 바뀌는지 미리 보기</button><div id="rsOut" style="margin-top:10px"></div></div>'+
+'<div class="card pad"><h3>교수 접속 코드 바꾸기</h3><p class="sub small">처음 코드(CHANGE-ME-2026)는 꼭 바꿔 주세요. 8자 이상.</p>'+
     '<label class="f">현재 코드<input class="in" type="password" id="oc" autocomplete="current-password"></label><label class="f">새 코드<input class="in" type="password" id="nc" autocomplete="new-password"></label><label class="f">새 코드 확인<input class="in" type="password" id="nc2" autocomplete="new-password"></label><button class="btn primary" id="chg" type="button">바꾸기</button></div>'+
    '<div class="card pad"><h3>학생에게 알려 줄 주소</h3><p class="small"><span class="code" style="word-break:break-all">'+esc(location.origin+location.pathname)+'</span></p><p class="sub small">처음에는 <b>처음 가입</b>으로 가입하고, 다음부터는 <b>학생 로그인</b>에서 조·학번·자기 접속 코드로 들어옵니다. 학생이 코드를 잊으면 <b>조 · 학생 관리</b>에서 ↻로 새 코드를 만들어 알려 주세요.</p></div>'+
   '</div>';
@@ -864,29 +869,78 @@ function renderSettings(){
       downloadCSV(rows,'AIDX_제출_피드백_'+new Date().toISOString().slice(0,10)+'.csv');
     }).catch(function(e){toast(errMsg(e),true)});
   };
-  $('#bkAll').onclick=function(){
-    var btn=this,msg=$('#bkMsg'),withF=$('#bkFiles').checked;btn.disabled=true;msg.textContent='백업 자료를 모으는 중…';
-    api('fb_admin_backup').then(function(bk){
+  function bkName(withF){var d=new Date(),pad=function(n){return (n<10?'0':'')+n};return 'AIDX_피드백_백업_'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+(withF?'_첨부포함':'')+'.json'}
+  function pickSave(name){ // 사용자가 누른 직후(제스처 안)에 불러야 함
+    if(!window.showSaveFilePicker)return Promise.resolve(null);
+    return window.showSaveFilePicker({suggestedName:name,types:[{description:'JSON 백업',accept:{'application/json':['.json']}}]}).catch(function(e){if(e&&e.name==='AbortError'){var x=new Error('저장을 취소했습니다.');x.code='cancel';throw x}return null});
+  }
+  function makeBackup(withF,say){
+    return api('fb_admin_backup').then(function(bk){
       var files=bk.tables.fb_files||[];
       if(!withF||!files.length)return bk;
-      var ids=files.map(function(f){return f.id}),got={},done=0,total=files.reduce(function(a,f){return a+(f.size||0)},0),gotB=0,i=0;
+      var got={},done=0,total=files.reduce(function(a,f){return a+(f.size||0)},0),gotB=0,i=0;
       function next(){
-        if(i>=ids.length)return Promise.resolve();
+        if(i>=files.length)return Promise.resolve();
         var batch=[],bytes=0;
-        while(i<ids.length&&batch.length<20){var f=files[i];if(batch.length&&bytes+(f.size||0)>6e6)break;batch.push(ids[i]);bytes+=f.size||0;i++}
+        while(i<files.length&&batch.length<20){var f=files[i];if(batch.length&&bytes+(f.size||0)>6e6)break;batch.push(f.id);bytes+=f.size||0;i++}
         return api('fb_admin_file_data',{p_ids:batch}).then(function(list){(list||[]).forEach(function(x){got[x.id]=x.data});done+=batch.length;gotB+=bytes;
-          msg.textContent='첨부 파일 받는 중… '+done+' / '+ids.length+'개 ('+Math.round(gotB/1048576)+' / '+Math.round(total/1048576)+' MB)';return next()});
+          say('첨부 파일 받는 중… '+done+' / '+files.length+'개 ('+Math.round(gotB/1048576)+' / '+Math.round(total/1048576)+' MB)');return next()});
       }
       return next().then(function(){files.forEach(function(f){f.data=got[f.id]==null?null:got[f.id]});bk.files_included=true;return bk});
-    }).then(function(bk){
-      bk.note='AIDX 피드백 앱 백업. fb_members.code(학생 접속 코드)가 들어 있으니 외부 공유 금지.'+(bk.files_included?' fb_files.data = 첨부 파일 내용(앱이 저장한 형식 그대로).':' 첨부 파일 내용은 포함하지 않음.');
-      var blob=new Blob([JSON.stringify(bk)],{type:'application/json'}),a=document.createElement('a'),d=new Date(),pad=function(n){return (n<10?'0':'')+n};
-      a.href=URL.createObjectURL(blob);a.download='AIDX_피드백_백업_'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+(bk.files_included?'_첨부포함':'')+'.json';
-      document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},2000);
-      var t=bk.tables;msg.textContent='완료: 조 '+t.fb_teams.length+' · 학생 '+t.fb_members.length+' · 제출 '+t.fb_submissions.length+' · 피드백 '+t.fb_feedback.length+' · 첨부 '+t.fb_files.length+'개 ('+Math.round(blob.size/1048576*10)/10+' MB)';
-      toast('JSON 백업을 내려받았습니다.');
-    }).catch(function(e){msg.textContent='';toast(errMsg(e),true)}).then(function(){btn.disabled=false});
+    }).then(function(bk){bk.note='AIDX 피드백 앱 백업. fb_members.code(학생 접속 코드)가 들어 있으니 외부 공유 금지.'+(bk.files_included?' fb_files.data = 첨부 파일 내용(앱이 저장한 형식 그대로).':' 첨부 파일 내용은 포함하지 않음.');return bk});
+  }
+  function saveJSON(bk,handle,name){
+    var blob=new Blob([JSON.stringify(bk)],{type:'application/json'});
+    if(handle)return handle.createWritable().then(function(w){return w.write(blob).then(function(){return w.close()})}).then(function(){return {size:blob.size,where:'고른 폴더의 「'+handle.name+'」'}});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},2000);
+    return Promise.resolve({size:blob.size,where:'다운로드 폴더의 「'+name+'」'});
+  }
+  $('#bkAll').onclick=function(){
+    var btn=this,msg=$('#bkMsg'),withF=$('#bkFiles').checked,name=bkName(withF),handle=null,say=function(t){msg.textContent=t};
+    btn.disabled=true;
+    pickSave(name).then(function(h){handle=h;say('백업 자료를 모으는 중…');return makeBackup(withF,say)})
+    .then(function(bk){return saveJSON(bk,handle,name).then(function(r){var t=bk.tables;
+      say('완료: '+r.where+'에 저장 · 조 '+t.fb_teams.length+' · 학생 '+t.fb_members.length+' · 제출 '+t.fb_submissions.length+' · 피드백 '+t.fb_feedback.length+' · 첨부 '+t.fb_files.length+'개 ('+Math.round(r.size/1048576*10)/10+' MB)');toast('백업을 저장했습니다.')})})
+    .catch(function(e){if(e.code==='cancel'){say('저장을 취소했습니다.');return}say('');toast(errMsg(e),true)}).then(function(){btn.disabled=false});
   };
+  // ── 백업 파일로 복원 ──
+  var RS=null;
+  var RS_LABEL={fb_settings:'가입 설정',fb_teams:'조',fb_weeks:'주차',fb_members:'학생',fb_submissions:'제출물',fb_feedback:'교수 피드백',fb_files:'첨부 파일'};
+  $('#rsFile').onchange=function(){RS=null;$('#rsOut').innerHTML='';var f=this.files[0];if(!f)return;
+    var rd=new FileReader();rd.onload=function(){try{var j=JSON.parse(rd.result);if(j.app!=='aidx-feedback'||!j.tables)throw 0;RS=j;
+      var t=j.tables,nf=(t.fb_files||[]).filter(function(x){return x.data}).length;
+      $('#rsOut').innerHTML='<p class="small">📄 <b>'+esc(f.name)+'</b> · 백업 시각 '+esc(dt(j.exported_at))+' · 조 '+(t.fb_teams||[]).length+' · 학생 '+(t.fb_members||[]).length+' · 제출 '+(t.fb_submissions||[]).length+' · 첨부 '+(t.fb_files||[]).length+'개'+(nf?' (내용 포함 '+nf+'개)':' <b>(첨부 내용 없음 → 첨부 파일은 복원되지 않음)</b>')+'</p>'}
+      catch(e){$('#rsOut').innerHTML='<p class="small" style="color:#c03535">AIDX 피드백 앱의 백업 파일이 아닙니다.</p>'}};rd.readAsText(f)};
+  function rsMode(){return (document.querySelector('input[name=rsMode]:checked')||{}).value||'missing'}
+  function rsTables(){var t=JSON.parse(JSON.stringify(RS.tables));delete t.fb_admins;return t}
+  $('#rsCheck').onclick=function(){
+    if(!RS){toast('먼저 백업 파일을 고르세요.',true);return}
+    var btn=this,mode=rsMode();btn.disabled=true;$('#rsOut').insertAdjacentHTML('beforeend','<p class="small muted" id="rsWait">비교하는 중…</p>');
+    var t=rsTables();t.fb_files=(t.fb_files||[]).map(function(f){var c=Object.assign({},f);delete c.data;return c});
+    api('fb_admin_restore',{p_tables:t,p_mode:mode,p_apply:false}).then(function(r){
+      var rows=Object.keys(RS_LABEL).map(function(k){var c=r[k]||{new:0,changed:0,same:0};return '<tr><td>'+RS_LABEL[k]+'</td><td style="text-align:center"><b>'+c.new+'</b></td><td style="text-align:center">'+(mode==='overwrite'?'<b>'+c.changed+'</b>':'<span class="muted">'+c.changed+' (그대로 둠)</span>')+'</td><td style="text-align:center" class="muted">'+c.same+'</td></tr>'}).join('');
+      var tot=Object.keys(RS_LABEL).reduce(function(a,k){var c=r[k]||{};return a+(c.new||0)+(mode==='overwrite'?(c.changed||0):0)},0);
+      $('#rsOut').innerHTML='<table class="tbl small" style="width:100%"><tr><th>항목</th><th>새로 되살림</th><th>내용이 다름</th><th>같음</th></tr>'+rows+'</table>'+
+        (tot?'<label class="radio" style="display:flex;margin:10px 0 6px"><input type="checkbox" id="rsPre" checked> 복원 전에 <b>지금 상태를 백업 파일로 먼저 저장</b> (첨부 제외 · 되돌릴 때 사용)</label><button class="btn primary" id="rsGo" type="button">'+tot+'건 복원하기</button>':'<p class="small" style="margin-top:8px">✅ 되살릴 내용이 없습니다. 지금 자료가 백업과 같거나 더 최신입니다.</p>');
+      if(tot)$('#rsGo').onclick=function(){doRestore(mode,tot)};
+    }).catch(function(e){$('#rsWait')&&$('#rsWait').remove();toast(errMsg(e),true)}).then(function(){btn.disabled=false});
+  };
+  function doRestore(mode,tot){
+    if(!confirm((mode==='overwrite'?'백업 시점으로 덮어쓰기':'빠진 것만 되살리기')+'로 '+tot+'건을 복원할까요?\n지금 있는 자료는 지우지 않습니다.'))return;
+    var go=$('#rsGo'),out=function(t){var p=$('#rsMsg');if(!p){$('#rsOut').insertAdjacentHTML('beforeend','<p class="small" id="rsMsg"></p>');p=$('#rsMsg')}p.textContent=t},pre=$('#rsPre')&&$('#rsPre').checked,preName=bkName(false).replace('.json','_복원전.json'),handle=null;
+    go.disabled=true;
+    (pre?pickSave(preName):Promise.resolve(null)).then(function(h){handle=h;
+      return pre?makeBackup(false,out).then(function(bk){return saveJSON(bk,handle,preName)}).then(function(r){out('복원 전 백업 저장: '+r.where)}):null})
+    .then(function(){out('조·학생·주차·제출물 복원 중…');var t=rsTables();t.fb_files=[];return api('fb_admin_restore',{p_tables:t,p_mode:mode,p_apply:true})})
+    .then(function(){
+      var fs=(RS.tables.fb_files||[]).filter(function(f){return f.data}),i=0,done=0;
+      function next(){if(i>=fs.length)return Promise.resolve();var b=[],bytes=0;
+        while(i<fs.length&&b.length<20){if(b.length&&bytes+(fs[i].size||0)>6e6)break;b.push(fs[i]);bytes+=fs[i].size||0;i++}
+        return api('fb_admin_restore_files',{p_files:b,p_mode:mode}).then(function(){done+=b.length;out('첨부 파일 복원 중… '+done+' / '+fs.length+'개');return next()})}
+      return next();
+    }).then(function(){out('✅ 복원을 마쳤습니다. 현황판을 새로 불러옵니다.');toast('복원을 마쳤습니다.');RS=null;$('#rsFile').value='';return loadAdmin()})
+    .catch(function(e){if(e.code==='cancel'){out('복원 전 백업 저장을 취소해서 복원을 멈췄습니다.');go.disabled=false;return}out('');toast(errMsg(e),true);go.disabled=false});
+  }
   $('#chg').onclick=function(){
     var a=$('#oc').value,b=$('#nc').value,c=$('#nc2').value;
     if(b!==c){toast('새 코드가 서로 다릅니다.',true);return}
